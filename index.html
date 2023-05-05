@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Map Polygoner</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+    <script src="script.js"></script>
+    <style>
+        body {
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            font-family: Calibri, Arial, sans-serif;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        #map {
+            height: 100%;
+            flex: 1;
+            cursor: crosshair !important;
+            position: relative;
+            z-index: 1;
+        }
+        .sidebar {
+            width: 250px;
+            border-left: 2px solid black;
+            overflow-y: scroll;
+            max-height: 100%;
+        }
+        .sidebar__section {
+            margin: 10px 0;
+        }
+        .sidebar__section h2 {
+            padding: 0 10px;
+            margin-bottom: 10px;
+        }
+        .sidebar__section p {
+            padding: 5px 10px;
+        }
+        .sidebar__section form {
+            padding: 0 10px;
+        }
+
+        .item-list {
+            --bd: 1px solid grey;
+        }
+        .item-list li {
+            padding: 5px 10px;
+            border-top: var(--bd);
+            cursor: pointer;
+        }
+        .item-list li:last-child {
+            border-bottom: var(--bd);
+        }
+        .item-list li:is(:hover, .hover) {
+            background: rgba(0, 0, 0, 0.025);
+        }
+        .item-list li.selected {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        .item-list li.danger {
+            background: rgba(255, 0, 0, 0.05);
+        }
+        .item-list li.danger:is(:hover, .hover) {
+            background: rgba(220, 0, 0, 0.1);
+        }
+        .item-list li.danger.selected {
+            background: rgba(200, 0, 0, 0.17);
+        }
+        button {
+            border: 1px solid #999;
+            padding: 5px;
+            border-radius: 5px;
+            background: #eee;
+            cursor: pointer;
+        }
+        textarea {
+            max-height: 300px;
+            min-height: 50px;
+            min-width: 50px;
+        }
+
+        .modal-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+        .modal {
+            max-width: 500px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #fff;
+        }
+        .modal > * {
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="modal-wrapper" id="modal-exp" hidden>
+    <div class="modal">
+        <textarea id="exp-output" class="data-textarea"></textarea><br>
+        <button class="modal-close">Close</button>
+    </div>
+</div>
+<div class="modal-wrapper" id="modal-imp" hidden>
+    <div class="modal">
+        <textarea id="imp-input" class="data-textarea" placeholder="Paste JSON here..."></textarea><br>
+        <button class="modal-close">Close</button>
+        <button id="btn-import-submit">Import</button>
+    </div>
+</div>
+
+<div id="map"></div>
+<div class="sidebar">
+    <div class="sidebar__section">
+        <h2>Data actions</h2>
+        <p><i>Don't worry, refreshing the page will not affect the data :)</i></p>
+        <form>
+            <button id="btn-export">Export</button>
+            <button id="btn-import">Import</button>
+            <button id="btn-delete">Delete</button><br>
+        </form>
+    </div>
+    <div class="sidebar__section">
+        <h2>Polygons</h2>
+        <ul class="item-list" id="polygons"></ul>
+    </div>
+    <div class="sidebar__section">
+        <h2>About</h2>
+        <p>In Polygoner you can select areas on the map and then export them as polygons.</p>
+        <p>
+            Click on a place on the map to place a pin there, click on that pin to remove it. Two pins create a polygon
+            (rectangle); press [Enter] to place the polygon on the map, it will also appear in the sidebar list. You can
+            add as many polygons as you want. You can select a polygon by clicking it on the map or in the list (you
+            can't do that if there are pins on the map). Press [Delete] to remove the selected polygon ([Shift+Delete]
+            to prevent confirmation). Press [Escape] to deselect pins or polygons.
+        </p>
+    </div>
+</div>
+
+</body>
+</html>
