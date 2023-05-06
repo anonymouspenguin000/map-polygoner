@@ -11,12 +11,12 @@ const mapUrls = {
     ARCGIS: 'http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
 };
 
-const mapUrl = mapUrls.ARCGIS;
+const mapUrl = mapUrls.OSM;
 const styles = {
-    CREATE: {color: 'blue', weight: 1},
-    INTERSECTS: {color: 'red', weight: 1},
-    NORMAL: {color: 'green', weight: 1},
-    SELECTED: {color: 'lime', weight: 1}
+    CREATE: {color: '#00c', weight: 1},
+    INTERSECTS: {color: '#f00', weight: 1},
+    NORMAL: {color: '#090', weight: 1},
+    SELECTED: {color: '#6c0', weight: 1}
 };
 const storeKey = 'polygoner_save';
 
