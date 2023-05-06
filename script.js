@@ -1,93 +1,141 @@
-const mapsUrlOSM = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const mapsUrlGoogle = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+const mapUrls = {
+    OSM: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    ERSI: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}.jpg',
+    ERSI_SATELLITE: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.jpg',
+    GOOGLE: 'https://mt.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+    GOOGLE_SATELLITE: 'https://mt.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+    STAMEN: 'http://a.tile.stamen.com/watercolor/{z}/{x}/{y}.jpg',
+    MAPS_FOR_FREE: 'https://maps-for-free.com/layer/relief/z{z}/row{y}/{z}_{x}-{y}.jpg',
+    CITY_LIGHT: 'http://map1.vis.earthdata.nasa.gov/wmts-webmerc/VIIRS_CityLights_2012/default//GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg',
+    CARTO: 'https://cartodb-basemaps-b.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}.png',
+    ARCGIS: 'http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
+};
+
+const mapUrl = mapUrls.ARCGIS;
+const styles = {
+    CREATE: {color: 'blue', weight: 1},
+    INTERSECTS: {color: 'red', weight: 1},
+    NORMAL: {color: 'green', weight: 1},
+    SELECTED: {color: 'lime', weight: 1}
+};
+const storeKey = 'polygoner_save';
+
+const getSaved = () => localStorage.getItem(storeKey) || '[]';
+const getid = id => document.getElementById(id);
 
 window.onload = () => {
     const map = L.map('map').setView([0, 0], 2);
     const polygons = [];
     const polygonNodes = [];
     const intersections = new Set();
+
     let selPolygon = null;
     let currPolygon = null;
+
     let cornerA = null;
     let cornerB = null;
     let cornerAMarker = null;
     let cornerBMarker = null;
 
-    L.tileLayer(mapsUrlOSM, {
+    L.tileLayer(mapUrl, {
         continuousWorld: false,
         noWrap: true,
         minZoom: 1
     }).addTo(map);
 
-    JSON.parse(localStorage.getItem('polygoner_save') || '[]').map(aa => aa.map(bb => ({lat: bb[0], lng: bb[1]}))).forEach(plg => addPolygon({plg, obj: L.rectangle(L.latLngBounds(...plg), {color: 'blue', weight: 1}).addTo(map)}));
+    const createPolygonObject = (ca, cb) => L.rectangle(L.latLngBounds(ca, cb), styles.CREATE).addTo(map);
+    const getNodeByPolygon = plg => polygonNodes[polygons.indexOf(plg)];
+
+    function deselectPolygon() {
+        if (!selPolygon) return;
+        selPolygon.setStyle(styles.NORMAL);
+        selPolygon = null;
+        renderList();
+    }
+    function selectPolygon(plg) {
+        deselectPolygon();
+        if (cornerA || cornerB) return;
+        selPolygon = plg;
+        selPolygon.setStyle(styles.SELECTED);
+        renderList();
+    }
+    function storePolygons() {
+        localStorage.setItem(storeKey, JSON.stringify(polygons.map(plg => plg.plg.map(vtx => [vtx.lat, vtx.lng]))));
+    }
+    function getIntersections(plg, since) {
+        const plg1b = plg.getBounds();
+        return polygons
+            .slice(since)
+            .map(plg2 => plg1b.intersects(plg2.obj.getBounds()) ? plg2.obj : null)
+            .filter(its => its !== null);
+    }
+    function updIntersections() {
+        intersections.clear();
+        polygons.slice(0, -1).forEach((plg, idx) => {
+            const curr = getIntersections(plg.obj, idx + 1);
+            if (curr.length) intersections.add(plg.obj);
+            curr.forEach(its => intersections.add(its));
+        });
+    }
+
+    JSON.parse(getSaved())
+        .map(plg => plg.map(vtx => ({lat: vtx[0], lng: vtx[1]})))
+        .forEach(plg => addPolygon({plg, obj: createPolygonObject(...plg)}));
     updIntersections();
     renderList();
 
-    const deselPolygon = () => {
-        if (!selPolygon) return;
-        selPolygon.setStyle({color: 'green'});
-        selPolygon = null;
-        renderList();
-    };
-    const setSelPolygon = plg => {
-        deselPolygon();
-        if (cornerA || cornerB) return;
-        selPolygon = plg;
-        selPolygon.setStyle({ color: 'lime' });
-        renderList();
-    };
+    map.on('click', evt => {
+        const {latlng} = evt;
 
-    function onMapClick(e) {
-        const {latlng} = e;
-
-        deselPolygon();
+        deselectPolygon();
         if (latlng.lat > 90 || latlng.lat < -90 || latlng.lng < -180 || latlng.lng > 180) return;
-        if (cornerA && cornerB) return;
+        if (currPolygon) return;
 
         const currMarker = L.marker(latlng).addTo(map);
-        const removeMarker = (id) => {
-            currMarker.remove();
-            if (id === 'a') {
+        const removeMarker = (name) => {
+            if (name === 'A') {
                 cornerA = null;
+                cornerAMarker.remove();
                 cornerAMarker = null;
-            } else {
+            }
+            if (name === 'B') {
                 cornerB = null;
+                cornerBMarker.remove();
                 cornerBMarker = null;
             }
-            if (!currPolygon) return;
-            currPolygon.remove();
-            currPolygon = null;
+
+            if (currPolygon) {
+                currPolygon.remove();
+                currPolygon = null;
+            }
         };
 
         if (!cornerA) {
             cornerA = latlng;
             cornerAMarker = currMarker;
-            currMarker.on('click', () => removeMarker('a'));
+            currMarker.on('click', () => removeMarker('A'));
         }
         else {
             cornerB = latlng;
             cornerBMarker = currMarker;
-            currMarker.on('click', () => removeMarker('b'));
+            currMarker.on('click', () => removeMarker('B'));
         }
 
         if (cornerA && cornerB) {
-            currPolygon = L.rectangle(L.latLngBounds(cornerA, cornerB), {color: 'blue', weight: 1}).addTo(map);
-            if (getIntersections(currPolygon).length) currPolygon.setStyle({color: 'red'});
+            currPolygon = createPolygonObject(cornerA, cornerB);
+            if (getIntersections(currPolygon).length) currPolygon.setStyle(styles.INTERSECTS);
         }
-    }
-
-    map.on('click', onMapClick);
+    });
     window.onkeyup = evt => {
         const removeCorners = () => {
             if (cornerAMarker) cornerAMarker.remove();
-            if (cornerBMarker)cornerBMarker.remove();
-            cornerAMarker = cornerBMarker = null;
+            if (cornerBMarker) cornerBMarker.remove();
             cornerA = cornerB = null;
+            cornerAMarker = cornerBMarker = null;
         };
         if (evt.code === 'Enter') {
             if (!currPolygon) return;
             addPolygon({plg: [cornerA, cornerB], obj: currPolygon});
-
             removeCorners();
             currPolygon = null;
 
@@ -96,15 +144,17 @@ window.onload = () => {
             renderList();
         }
         if (evt.code === 'Escape') {
-            deselPolygon();
+            deselectPolygon();
             removeCorners();
-            if (!currPolygon) return;
-            currPolygon.remove();
-            currPolygon = null;
+            if (currPolygon) {
+                currPolygon.remove();
+                currPolygon = null;
+            }
         }
         if (evt.code === 'Delete') {
-            if (!selPolygon || !evt.shiftKey && !confirm('Are you sure?')) return;
-            polygons.splice(polygons.findIndex(el => el.obj === selPolygon), 1);
+            if (!selPolygon || !evt.shiftKey && !confirm('Are you sure to delete the polygon?')) return;
+
+            polygons.splice(polygons.findIndex(plg => plg.obj === selPolygon), 1);
             selPolygon.remove();
             selPolygon = null;
 
@@ -113,52 +163,33 @@ window.onload = () => {
             renderList();
         }
     }
-    function addPolygon(plgEntry) {
-        polygons.push(plgEntry);
-        plgEntry.obj.setStyle({ color: 'green' });
-        plgEntry.obj.on('click', evt => {
+    function addPolygon(plg) {
+        polygons.push(plg);
+        plg.obj.setStyle(styles.NORMAL);
+        plg.obj.on('click', evt => {
             L.DomEvent.stopPropagation(evt);
-            setSelPolygon(evt.target);
+            selectPolygon(evt.target);
         });
-        plgEntry.obj.on('mouseover', () => {
-            polygonNodes[polygons.indexOf(plgEntry)].classList.add('hover');
+        plg.obj.on('mouseover', () => {
+            getNodeByPolygon(plg).classList.add('hover');
         });
-        plgEntry.obj.on('mouseout', () => {
-            polygonNodes[polygons.indexOf(plgEntry)].classList.remove('hover');
+        plg.obj.on('mouseout', () => {
+            getNodeByPolygon(plg).classList.remove('hover');
         });
-    }
-    function storePolygons() {
-        localStorage.setItem('polygoner_save', JSON.stringify(polygons.map(el => el.plg.map(el => [el.lat, el.lng]))));
-    }
-    function updIntersections() {
-        intersections.clear();
-        polygons.slice(0, -1).forEach((plg, idx) => {
-            const its = getIntersections(plg.obj, idx + 1);
-            if (its.length) intersections.add(plg.obj);
-            its.forEach(el => intersections.add(el));
-        });
-    }
-    function getIntersections(plg1, since) {
-        const plg1b = plg1.getBounds();
-        return polygons
-            .slice(since)
-            .map(plg2 => plg1b.intersects(plg2.obj.getBounds()) ? plg2.obj : null)
-            .filter(el => el !== null);
     }
     function renderList() {
-        const listNode = document.getElementById('polygons');
+        const listNode = getid('polygons');
         listNode.innerHTML = '';
         polygonNodes.length = 0;
         polygons.forEach((plgItem, idx) => {
             const item = document.createElement('li');
-            const {plg} = plgItem;
+            const {plg, obj} = plgItem;
 
             item.innerHTML = `${idx + 1}. Prod = ${(plg[0].lat * plg[1].lat + plg[0].lng * plg[1].lng).toFixed(6)}`;
-            item.classList.toggle('selected', plgItem.obj === selPolygon);
-
-            item.classList.toggle('danger', intersections.has(plgItem.obj));
+            item.classList.toggle('selected', obj === selPolygon);
+            item.classList.toggle('danger', intersections.has(obj));
             item.onclick = () => {
-                setSelPolygon(plgItem.obj);
+                selectPolygon(obj);
             };
 
             listNode.append(item);
@@ -166,30 +197,30 @@ window.onload = () => {
         });
     }
 
-    const expModal = document.getElementById('modal-exp');
-    const impModal = document.getElementById('modal-imp');
+    const expModal = getid('modal-exp');
+    const impModal = getid('modal-imp');
+
     expModal.getElementsByClassName('modal-close')[0].onclick = () => expModal.style.display = 'none';
     impModal.getElementsByClassName('modal-close')[0].onclick = () => impModal.style.display = 'none';
-    document.getElementById('btn-import-submit').onclick = () => {
+
+    getid('btn-import-submit').onclick = () => {
         if (polygons.length && prompt('You will lose the data. Type "IMPORT" without quotes to continue.') !== 'IMPORT') return;
-        const input = document.getElementById('imp-input');
-        localStorage.setItem('polygoner_save', input.value);
+        const input = getid('imp-input');
+        localStorage.setItem(storeKey, input.value);
         location.reload();
     };
-    document.getElementById('btn-export').onclick = () => {
-        const output = document.getElementById('exp-output');
+    getid('btn-export').onclick = () => {
+        const output = getid('exp-output');
         expModal.style.display = 'flex';
         output.style.display = 'initial';
-        output.value = localStorage.getItem('polygoner_save') || '[]';
+        output.value = getSaved();
         output.select();
-        return false;
     };
-    document.getElementById('btn-import').onclick = () => {
+    getid('btn-import').onclick = () => {
         impModal.style.display = 'flex';
-        return false;
     };
-    document.getElementById('btn-delete').onclick = () => {
-        if (prompt('Type "DELETE" without quotes to continue') !== 'DELETE') return false;
+    getid('btn-delete').onclick = () => {
+        if (prompt('Type "DELETE" without quotes to continue') !== 'DELETE') return;
         localStorage.clear();
         location.reload();
     };

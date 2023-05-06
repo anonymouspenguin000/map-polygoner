@@ -1,0 +1,103 @@
+body {
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    font-family: Calibri, Arial, sans-serif;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+button {
+    border: 1px solid #999;
+    padding: 5px;
+    border-radius: 5px;
+    background: #eee;
+    cursor: pointer;
+}
+button:hover {
+    background: #e2e2e2;
+}
+textarea {
+    max-height: 300px;
+    min-height: 50px;
+    min-width: 50px;
+}
+#map {
+    height: 100%;
+    flex: 1;
+    cursor: crosshair !important;
+    position: relative;
+    z-index: 1;
+}
+
+.sidebar {
+    width: 250px;
+    border-left: 2px solid black;
+    overflow-y: scroll;
+    max-height: 100%;
+}
+.sidebar__section {
+    margin: 10px 0;
+}
+.sidebar__title {
+    padding: 0 10px;
+    margin-bottom: 10px;
+}
+.sidebar__paragraph {
+    padding: 5px 10px;
+}
+.sidebar__block {
+    padding: 0 10px;
+}
+
+.item-list {
+    --bd: 1px solid grey;
+}
+.item-list li {
+    padding: 5px 10px;
+    border-top: var(--bd);
+    cursor: pointer;
+}
+.item-list li:last-child {
+    border-bottom: var(--bd);
+}
+.item-list li:is(:hover, .hover) {
+    background: rgba(0, 0, 0, 0.025);
+}
+.item-list li.selected {
+    background: rgba(0, 0, 0, 0.05);
+}
+.item-list li.danger {
+    background: rgba(255, 0, 0, 0.05);
+}
+.item-list li.danger:is(:hover, .hover) {
+    background: rgba(220, 0, 0, 0.1);
+}
+.item-list li.danger.selected {
+    background: rgba(200, 0, 0, 0.17);
+}
+
+.modal-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+}
+.modal {
+    max-width: 500px;
+    padding: 10px;
+    border-radius: 10px;
+    background: #fff;
+}
+.modal > * {
+    max-width: 100%;
+}
